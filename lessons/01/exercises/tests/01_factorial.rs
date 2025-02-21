@@ -1,6 +1,13 @@
 //! Run this file with `cargo test --test 01_factorial`.
 
 // TODO: Implement a simple factorial function.
+fn factorial(num: i32) -> i32 {
+    if num == 0 {
+        1
+    } else {
+        num * factorial(num - 1)
+    }
+}
 
 /// Below you can find a set of unit tests.
 #[cfg(test)]

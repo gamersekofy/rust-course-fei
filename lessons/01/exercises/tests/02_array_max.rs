@@ -6,6 +6,10 @@
 // The input argument is an array of ten `i32` integers.
 // How does that type look like in Rust?
 
+fn find_largest(nums: [i32; 10]) -> i32 {
+    nums.sort()[0]
+}
+
 /// Below you can find a set of unit tests.
 #[cfg(test)]
 mod tests {

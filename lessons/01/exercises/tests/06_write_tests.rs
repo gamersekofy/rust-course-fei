@@ -37,4 +37,39 @@ fn sanitize(input: &str) -> &str {
 mod tests {
     use super::sanitize;
 
+    #[test]
+    fn test_single_x(){
+        assert_eq!("miau", sanitize("miaux"))
+    }
+
+    #[test]
+    fn test_repeated_x(){
+        assert_eq!("apple", sanitize("applexxxx"))
+    }
+
+    #[test]
+    fn test_single_o() {
+        assert_eq!("h", sanitize("ho"))
+    }
+
+    #[test]
+    fn test_repeated_o(){
+        assert_eq!("mia", sanitize("miaoooooo"))
+    }
+
+    #[test]
+    fn test_double_x(){
+        assert_eq!("xn", sanitize("xnxx"))
+    }
+
+    #[test]
+    fn test_many_o(){
+        assert_eq!("owloool", sanitize("owlooolooo"))
+    }
+
+    #[test]
+    fn test_crazy(){
+        assert_eq!("miaxxoo.exe.oo.", sanitize("miaxxoo.exe.oo.xx"))
+    }
+
 }

@@ -10,6 +10,22 @@
 // operation should be performed on it.
 // Hint: max(..) and min(..) methods of `i32` might come in handy.
 
+enum Op {
+    Add(i32),
+    Sub(i32),
+    Clamp { low: i32, high: i32 }
+}
+
+fn perform_calculation(num: i32, op: Op) -> i32 {
+    match op {
+        Op::Add(n) => num + n,
+        Op::Sub(n) => num - n,
+        Op::Clamp { low, high } => {
+            let clamped = num.clamp(low, high);
+            clamped
+        }
+    }
+}
 /// Below you can find a set of unit tests.
 #[cfg(test)]
 mod tests {

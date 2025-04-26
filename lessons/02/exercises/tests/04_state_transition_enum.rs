@@ -51,6 +51,73 @@ enum Event {
 // Compare this approach with using a struct (which we did on the lesson).
 // Is it easier with an enum or with a struct?
 
+/// Processes an event and returns the new state of the computer based on the rules.
+fn pc_transition(computer: ComputerState, event: Event) -> ComputerState {
+    match (computer, event) {
+        // Rule 2: TurnOff always leads to Off state, regardless of the current state.
+        (_, Event::TurnOff) => ComputerState::Off,
+
+        // Rule 1: TurnOn only does something if the computer is Off.
+        (ComputerState::Off, Event::TurnOn) => {
+            // Switch to Running with initial times set to zero.
+            ComputerState::Running { uptime: 0, idle_time: 0 }
+        }
+        // If TurnOn happens when the computer is already Running or Sleeping, nothing changes.
+        // The '@' binds the matched state to the variable `state` so we can return it unchanged.
+        (state @ (ComputerState::Running {..} | ComputerState::Sleeping {..}), Event::TurnOn) => {
+            state // Return the original state
+        }
+
+        // Rule 3: Handling MoveMouse event.
+        // If Off, MoveMouse does nothing.
+        (ComputerState::Off, Event::MoveMouse) => ComputerState::Off,
+        // If Running, reset idle_time to 0, keep the same uptime.
+        (ComputerState::Running { uptime, .. }, Event::MoveMouse) => {
+            ComputerState::Running { uptime, idle_time: 0 }
+        }
+        // If Sleeping, switch to Running, keep the same uptime, reset idle_time to 0.
+        (ComputerState::Sleeping { uptime, .. }, Event::MoveMouse) => {
+            ComputerState::Running { uptime, idle_time: 0 }
+        }
+
+        // Rule 4: Handling PassTime(time) event.
+        // If Off, PassTime does nothing.
+        (ComputerState::Off, Event::PassTime(_)) => ComputerState::Off,
+        // If Running, increment times and check for transition to Sleeping or Off.
+        (ComputerState::Running { uptime, idle_time }, Event::PassTime(time)) => {
+            let new_uptime = uptime + time;
+            let new_idle_time = idle_time + time;
+            // Check if idle time exceeds the threshold to go to sleep.
+            if new_idle_time > 1000 {
+                // Calculate initial sleep time (excess idle time).
+                let initial_sleep_time = new_idle_time - 1000;
+                // Check if this initial sleep time *immediately* exceeds the shutdown threshold.
+                if initial_sleep_time > 500 {
+                    ComputerState::Off // Go directly to Off if sleep threshold also exceeded.
+                } else {
+                    // Otherwise, transition to Sleeping state.
+                    ComputerState::Sleeping { uptime: new_uptime, sleep_time: initial_sleep_time }
+                }
+            } else {
+                // If idle threshold not exceeded, remain Running with updated times.
+                ComputerState::Running { uptime: new_uptime, idle_time: new_idle_time }
+            }
+        }
+        // If Sleeping, increment times and check for transition to Off.
+        (ComputerState::Sleeping { uptime, sleep_time }, Event::PassTime(time)) => {
+            let new_uptime = uptime + time;
+            let new_sleep_time = sleep_time + time;
+            // Check if sleep time exceeds the threshold to turn off.
+            if new_sleep_time > 500 {
+                ComputerState::Off // Turn off
+            } else {
+                // If sleep threshold not exceeded, remain Sleeping with updated times.
+                ComputerState::Sleeping { uptime: new_uptime, sleep_time: new_sleep_time }
+            }
+        }
+    }
+}
+
 /// Below you can find a set of unit tests.
 #[cfg(test)]
 mod tests {

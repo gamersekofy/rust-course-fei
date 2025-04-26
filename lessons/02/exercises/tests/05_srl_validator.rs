@@ -25,6 +25,83 @@
 // Hint: Put `#[derive(Debug, Eq, PartialEq)]` on top of `SRL` and `SRLValidationError`,
 // so that asserts in tests work.
 
+mod srl {
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct SRL {
+        protocol: Option<String>,
+        address: String,
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    pub enum SRLValidationError {
+        EmptyAddress,
+        EmptyProtocol,
+        InvalidCharacterInAddress(char),
+        InvalidCharacterInProtocol(char),
+    }
+
+    impl SRL {
+        pub fn new(input: &str) -> Result<Self, SRLValidationError> {
+            if input.is_empty() {
+                return Err(SRLValidationError::EmptyAddress);
+            }
+
+            // Check if the input has a protocol part
+            if let Some((protocol_part, address_part)) = input.split_once("://") {
+                // Protocol exists
+                if protocol_part.is_empty() {
+                    return Err(SRLValidationError::EmptyProtocol);
+                }
+
+                // Validate protocol (only lowercase English letters)
+                for c in protocol_part.chars() {
+                    if !('a'..='z').contains(&c) {
+                        return Err(SRLValidationError::InvalidCharacterInProtocol(c));
+                    }
+                }
+
+                // Validate address
+                if address_part.is_empty() {
+                    return Err(SRLValidationError::EmptyAddress);
+                }
+
+                // Validate address (only lowercase English letters)
+                for c in address_part.chars() {
+                    if !('a'..='z').contains(&c) {
+                        return Err(SRLValidationError::InvalidCharacterInAddress(c));
+                    }
+                }
+
+                Ok(SRL {
+                    protocol: Some(protocol_part.to_string()),
+                    address: address_part.to_string(),
+                })
+            } else {
+                // No protocol part, just address
+                // Validate address (only lowercase English letters)
+                for c in input.chars() {
+                    if !('a'..='z').contains(&c) {
+                        return Err(SRLValidationError::InvalidCharacterInAddress(c));
+                    }
+                }
+
+                Ok(SRL {
+                    protocol: None,
+                    address: input.to_string(),
+                })
+            }
+        }
+
+        pub fn get_protocol(&self) -> Option<&str> {
+            self.protocol.as_deref()
+        }
+
+        pub fn get_address(&self) -> &str {
+            &self.address
+        }
+    }
+}
+
 /// Below you can find a set of unit tests.
 #[cfg(test)]
 mod tests {

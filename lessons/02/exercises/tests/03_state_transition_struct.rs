@@ -22,38 +22,73 @@
 //   - If the PC is running and its `idle_time` is larger than 1000, it switches to `Sleeping`.
 //   - If the PC is sleeping and its `sleep_time` is larger than 500, it switches to `Off`.
 
+// Represents the state of the computer using Option fields.
+// - If `uptime` is None, the computer is Off. `idle_time` and `sleep_time` must also be None.
+// - If `uptime` is Some, the computer is On (Running or Sleeping).
+//   - If `idle_time` is Some, it's Running. `sleep_time` must be None.
+//   - If `sleep_time` is Some, it's Sleeping. `idle_time` must be None.
 struct ComputerState {
-    // TODO: represent the state of the computer
+    // Time since the computer was turned on. None if the computer is off.
+    uptime: Option<u32>,
+    // Time since the last mouse move. Only Some if the computer is Running.
+    idle_time: Option<u32>,
+    // Time since the computer went to sleep. Only Some if the computer is Sleeping.
+    sleep_time: Option<u32>,
 }
 
 impl ComputerState {
     // Returns a computer that is turned off
     fn new_off() -> Self {
-        todo!()
+        Self {
+            uptime: None,
+            idle_time: None,
+            sleep_time: None,
+        }
     }
 
-    // Returns a computer that is turned on
+    // Returns a computer that is turned on (starts in Running state)
     fn new_on() -> Self {
-        todo!()
+        Self {
+            uptime: Some(0),      // Uptime starts at 0
+            idle_time: Some(0),   // Idle time starts at 0 (implicitly Running)
+            sleep_time: None,     // Not sleeping initially
+        }
     }
 
+    // Checks if the computer is On (either Running or Sleeping)
     fn is_on(&self) -> bool {
-        todo!()
+        self.uptime.is_some()
     }
+
+    // Checks if the computer is Sleeping
     fn is_sleeping(&self) -> bool {
-        todo!()
+        // If sleep_time is Some, it must be sleeping (based on our state representation)
+        self.sleep_time.is_some()
     }
+
+    // Returns the uptime if the computer is On, otherwise 0.
     fn uptime(&self) -> u32 {
-        todo!()
+        self.uptime.unwrap_or(0)
     }
+
+    // Returns the idle time if the computer is Running, otherwise 0.
     fn idle_time(&self) -> u32 {
-        todo!()
+        self.idle_time.unwrap_or(0)
     }
+
+    // Returns the sleep time if the computer is Sleeping, otherwise 0.
     fn sleep_time(&self) -> u32 {
-        todo!()
+        self.sleep_time.unwrap_or(0)
+    }
+
+    // Helper function to check if the computer is currently Running
+    fn is_running(&self) -> bool {
+        self.idle_time.is_some()
     }
 }
 
+// Make Event derivable for tests if needed, ensure it matches the test crate's definition
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Event {
     TurnOn,
     TurnOff,
@@ -61,9 +96,90 @@ enum Event {
     MoveMouse,
 }
 
+
+// Processes an event and returns the new state of the computer.
 fn pc_transition(mut computer: ComputerState, event: Event) -> ComputerState {
-    todo!()
+    match event {
+        Event::TurnOn => {
+            // Rule 1: If off, switch to Running. Otherwise, no change.
+            if !computer.is_on() {
+                computer = ComputerState::new_on(); // Reinitialize to the base "On" state
+            }
+            // If already on, do nothing. State and times remain unchanged.
+        }
+        Event::TurnOff => {
+            // Rule 2: Switch to Off, regardless of the current state.
+            computer = ComputerState::new_off();
+        }
+        Event::MoveMouse => {
+            // Rule 3:
+            if computer.is_sleeping() {
+                // Rule 3a: If sleeping, switch to Running.
+                // Uptime is preserved. Idle time resets. Sleep time is cleared.
+                let current_uptime = computer.uptime.expect("Sleeping state must have uptime");
+                // No need to re-assign uptime, it's preserved.
+                computer.idle_time = Some(0); // Reset idle time, indicating Running state
+                computer.sleep_time = None;   // No longer sleeping
+            } else if computer.is_running() {
+                // Rule 3b: If running, reset idle_time to zero.
+                computer.idle_time = Some(0);
+            }
+            // If Off, MoveMouse does nothing.
+        }
+        Event::PassTime(time) => {
+            // Rule 4: Only applies if the computer is On.
+            if let Some(current_uptime) = computer.uptime {
+                let new_uptime = current_uptime + time;
+                computer.uptime = Some(new_uptime); // Update uptime regardless of sub-state
+
+                // Check if was RUNNING at the start of the event
+                if let Some(current_idle_time) = computer.idle_time {
+                    let new_idle_time = current_idle_time + time;
+                    if new_idle_time > 1000 {
+                        // --- Transition to Sleeping ---
+                        computer.idle_time = None;
+                        // Correction 1: Initial sleep time is excess idle time
+                        let initial_sleep_time = new_idle_time - 1000;
+                        computer.sleep_time = Some(initial_sleep_time);
+
+                        // Correction 2: Immediately check if the new sleep state triggers shutdown
+                        if initial_sleep_time > 500 {
+                            computer = ComputerState::new_off(); // Turn off
+                            // State changed to Off, no further processing needed for this event
+                        }
+                        // If it didn't turn off, it's now sleeping. End of processing for this PassTime.
+
+                    } else {
+                        // --- Still Running ---
+                        computer.idle_time = Some(new_idle_time); // Just update idle time
+                    }
+                }
+                // Check if was SLEEPING at the start of the event
+                // Use else if because it cannot be Running and Sleeping simultaneously.
+                // This block is NOT entered if it just transitioned from Running to Sleeping above.
+                else if let Some(current_sleep_time) = computer.sleep_time {
+                    let new_sleep_time = current_sleep_time + time;
+                    if new_sleep_time > 500 {
+                        // --- Transition to Off from Sleep ---
+                        computer = ComputerState::new_off(); // Turn off
+                        // State changed to Off, no further processing needed
+                    } else {
+                        // --- Still Sleeping ---
+                        computer.sleep_time = Some(new_sleep_time); // Just update sleep time
+                    }
+                }
+                // If the state was somehow invalid (On but neither Running nor Sleeping), do nothing more.
+
+            } // End if computer.is_on()
+            // If Off, PassTime does nothing.
+        }
+    }
+    computer // Return the (potentially) modified state
 }
+
+// --- Tests ---
+// Use the tests provided by the user. Ensure this code is in `src/lib.rs` or similar
+// and the tests are in `tests/03_state_transition_struct.rs`.
 
 /// Below you can find a set of unit tests.
 #[cfg(test)]
